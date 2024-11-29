@@ -55,7 +55,10 @@ get "/admin" do |env|
     records = [] of {String, Time}
 
     db.query_each "select action,created_at from daka order by id" do |rs|
-      records << {rs.read(String), rs.read(Time)}
+      action = rs.read(String)
+      time = rs.read(Time).in(Time::Location.fixed(8*3600))
+
+      records << {action, time}
     end
 
     render "src/records.ecr"
