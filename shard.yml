@@ -9,8 +9,8 @@ targets:
     main: src/daka.cr
 
 dependencies:
-  foo:
-    github: foo/bar.cr
+  kemal:
+    github: kemalcr/kemal
 
 crystal: '>= 1.14.0'
 
