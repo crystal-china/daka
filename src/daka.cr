@@ -1,7 +1,21 @@
 require "./daka/**"
 require "kemal"
+require "kemal-basic-auth"
 require "db"
 require "sqlite3"
+
+class CustomAuthHandler < Kemal::BasicAuth::Handler
+  only ["/admin"]
+
+  def call(context)
+    return call_next(context) unless only_match?(context)
+    super
+  end
+end
+
+Kemal.config.auth_handler = CustomAuthHandler
+
+basic_auth "user", "***REMOVED***"
 
 def find_db_path(name)
   (Path["#{Process.executable_path.as(String)}/../.."] / "daka.db").expand
@@ -34,6 +48,9 @@ post "/daka" do |env|
   end
 
   "success!"
+end
+
+get "/admin" do |env|
 end
 
 Kemal.run
