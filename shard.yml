@@ -13,6 +13,8 @@ dependencies:
     github: kemalcr/kemal
   kemal-session:
     github: kemalcr/kemal-session
+  kemal-basic-auth:
+    github: kemalcr/kemal-basic-auth
   sqlite3:
     github: crystal-lang/crystal-sqlite3
 
