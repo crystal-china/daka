@@ -1,0 +1,17 @@
+name: daka
+version: 0.1.0
+
+authors:
+  - Billy.Zheng <vil963@gmail.com>
+
+targets:
+  daka:
+    main: src/daka.cr
+
+dependencies:
+  foo:
+    github: foo/bar.cr
+
+crystal: '>= 1.14.0'
+
+license: MIT
