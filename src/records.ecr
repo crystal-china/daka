@@ -1,0 +1,23 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>打卡记录</title>
+  </head>
+  <body>
+    <table>
+      <tr>
+        <th>动作</th>
+        <th>时间</th>
+      </tr>
+
+      <% records.each do |record| %>
+        <tr>
+          <td><%= record[0] %></td>
+          <td><%= record[1].to_s("%m月%d日 %H:%M:%S") %></td>
+        </tr>
+      <% end %>
+    </table>
+  </body>
+</html>

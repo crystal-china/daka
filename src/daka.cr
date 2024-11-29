@@ -51,6 +51,15 @@ post "/daka" do |env|
 end
 
 get "/admin" do |env|
+  DB.connect DB_FILE do |db|
+    records = [] of {String, Time}
+
+    db.query_each "select action,created_at from daka order by id" do |rs|
+      records << {rs.read(String), rs.read(Time)}
+    end
+
+    render "src/records.ecr"
+  end
 end
 
 Kemal.run
