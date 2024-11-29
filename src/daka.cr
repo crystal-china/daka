@@ -15,7 +15,7 @@ end
 
 Kemal.config.auth_handler = CustomAuthHandler
 
-basic_auth "user", "***REMOVED***"
+basic_auth "user", "1234567"
 
 def find_db_path(name)
   (Path["#{Process.executable_path.as(String)}/../.."] / "daka.db").expand
@@ -33,6 +33,7 @@ unless db_exists?
   DB.connect DB_FILE do |db|
     db.exec "create table if not exists daka (
             id INTEGER PRIMARY KEY,
+            hostname TEXT,
             action TEXT,
             date DATETIME DEFAULT CURRENT_DATE,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP
@@ -41,10 +42,11 @@ unless db_exists?
 end
 
 post "/daka" do |env|
+  hostname = env.params.json["hostname"]?.try(&.as(String)) || "unknown"
   action = env.params.json["action"].as(String)
 
   DB.connect DB_FILE do |db|
-    db.exec("INSERT INTO daka (action) VALUES (?);", action)
+    db.exec("INSERT INTO daka (hostname, action) VALUES (?, ?);", hostname, action)
   end
 
   "success!"
@@ -52,13 +54,14 @@ end
 
 get "/admin" do |env|
   DB.connect DB_FILE do |db|
-    records = [] of {String, Time}
+    records = [] of {String, String, Time}
 
-    db.query_each "select action,created_at from daka order by id" do |rs|
+    db.query_each "select hostname,action,created_at from daka order by id" do |rs|
+      hostname = rs.read(String)
       action = rs.read(String)
       time = rs.read(Time).in(Time::Location.fixed(8*3600))
 
-      records << {action, time}
+      records << {hostname, action, time}
     end
 
     render "src/records.ecr"

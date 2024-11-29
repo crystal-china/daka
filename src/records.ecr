@@ -8,6 +8,7 @@
   <body>
     <table>
       <tr>
+        <th>主机名</th>
         <th>动作</th>
         <th>时间</th>
       </tr>
@@ -15,7 +16,8 @@
       <% records.each do |record| %>
         <tr>
           <td><%= record[0] %></td>
-          <td><%= record[1].to_s("%m月%d日 %H:%M:%S") %></td>
+          <td><%= record[1] %></td>
+          <td><%= record[2].to_s("%m月%d日 %H:%M:%S") %></td>
         </tr>
       <% end %>
     </table>
