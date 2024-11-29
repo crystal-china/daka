@@ -1,6 +1,8 @@
 require "./daka/**"
-# TODO: Write documentation for `Daka`
-module Daka
+require "kemal"
 
-  # TODO: Put your code here
+get "/daka" do
+  "hello world!"
 end
+
+Kemal.run
