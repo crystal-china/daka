@@ -73,6 +73,8 @@ get "/admin" do |env|
       records << {hostname, action, time, date}
     end
 
+    dates = records.group_by { |e| e[3] }
+
     render "src/records.ecr"
   end
 end
