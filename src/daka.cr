@@ -54,14 +54,23 @@ end
 
 get "/admin" do |env|
   DB.connect DB_FILE do |db|
-    records = [] of {String, String, Time}
+    date_range = [1.days.ago, Time.local].map(&.to_s("%Y-%m-%d"))
 
-    db.query_each "select hostname,action,created_at from daka order by id" do |rs|
+    sql = String.build do |io|
+      io << "("
+      io << date_range.map { |date| "\"#{date}\"" }.join(",")
+      io << ")"
+    end
+
+    records = [] of {String, String, Time, String}
+
+    db.query_each "select hostname,action,created_at,date from daka where date in #{sql} order by id desc" do |rs|
       hostname = rs.read(String)
       action = rs.read(String)
       time = rs.read(Time).in(Time::Location.fixed(8*3600))
+      date = rs.read(String)
 
-      records << {hostname, action, time}
+      records << {hostname, action, time, date}
     end
 
     render "src/records.ecr"
