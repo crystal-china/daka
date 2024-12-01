@@ -57,8 +57,6 @@ post "/daka" do |env|
     {rs.read(Time), rs.read(Int64)}
   end
 
-  pp! last_headbeat_time, last_id
-
   if now - last_headbeat_time > time_span + 1.minute
     # 如果最后一次心跳时间, 超过了设定的心跳时间一分钟, 我们认为这是用户刚开始启动心跳
     # 者通常意味着, 系统在长时间断网后, 刚刚重新连接网络, 即: 系统刚刚启动或唤醒
