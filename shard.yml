@@ -17,6 +17,8 @@ dependencies:
     github: kemalcr/kemal-basic-auth
   sqlite3:
     github: crystal-lang/crystal-sqlite3
+  tallboy:
+    github: epoch/tallboy
 
 crystal: '>= 1.14.0'
 
