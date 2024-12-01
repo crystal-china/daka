@@ -22,6 +22,11 @@
             <td><%= record[1] %></td>
             <td><%= record[2].to_s("%H:%M:%S") %></td>
           </tr>
+          <% if record[1] == "shutdown" %>
+            <tr style="background: #aaa;">
+              <td colspan="3"></td>
+            </tr>
+          <% end %>
         <% end %>
       <% end %>
     </table>
