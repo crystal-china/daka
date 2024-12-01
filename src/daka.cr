@@ -3,6 +3,7 @@ require "kemal"
 require "kemal-basic-auth"
 require "db"
 require "sqlite3"
+require "tallboy"
 
 class CustomAuthHandler < Kemal::BasicAuth::Handler
   only ["/admin"]
@@ -101,7 +102,31 @@ ORDER BY id DESC" do |rs|
 
     dates = records.group_by { |e| e[3] }
 
-    render "src/records.ecr"
+    if env.request.headers["user_agent"].starts_with?("xh/")
+      table = Tallboy.table do
+        columns do
+          add "hostname"
+          add "action"
+          add "time"
+        end
+
+        header
+
+        dates.each do |date|
+          header date[0], align: :left
+
+          data = date[1]
+            .sort_by { |e| e[2] }
+            .map { |e| [e[0], e[1], e[2].to_s("%H:%M:%S")] }
+
+          rows data
+        end
+      end
+
+      table.render.to_s
+    else
+      render "src/records.ecr"
+    end
   end
 end
 
