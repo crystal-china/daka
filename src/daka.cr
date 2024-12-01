@@ -41,15 +41,39 @@ unless db_exists?
   end
 end
 
+time_span = 1.minute
+
+# Log.setup(:debug)
+
 post "/daka" do |env|
   hostname = env.params.json["hostname"]?.try(&.as(String)) || "unknown"
-  action = env.params.json["action"].as(String)
+  action = "heartbeat"
+  now = Time.local
 
-  DB.connect DB_FILE do |db|
-    db.exec("INSERT INTO daka (hostname, action) VALUES (?, ?);", hostname, action)
+  db = DB.open(DB_FILE)
+
+  last_headbeat_time, last_id = db.query_one "select created_at,id from daka order by id desc limit 1;" do |rs|
+    {rs.read(Time), rs.read(Int64)}
   end
 
+  pp! last_headbeat_time, last_id
+
+  if now - last_headbeat_time > time_span + 1.minute
+    # 如果最后一次心跳时间, 超过了设定的心跳时间一分钟, 我们认为这是用户刚开始启动心跳
+    # 者通常意味着, 系统在长时间断网后, 刚刚重新连接网络, 即: 系统刚刚启动或唤醒
+    action = "boot"
+
+    # 因为在那个之后, 直到现在, 再没有收到过心跳.
+    # 那么前一次成功的心跳的时间, 可以粗略认为是系统关机时间.
+    # 因此更新前一次心跳的 action 为 shutdown
+    db.exec("update daka set action = ? where id = ?", "shutdown", last_id)
+  end
+
+  db.exec("INSERT INTO daka (hostname, action) VALUES (?, ?);", hostname, action)
+
   "success!"
+ensure
+  db.close if db
 end
 
 get "/admin" do |env|
