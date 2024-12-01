@@ -47,6 +47,10 @@ time_span = 1.minute
 # Log.setup(:debug)
 
 post "/daka" do |env|
+  if !env.request.headers["user_agent"].starts_with?("xh/")
+    halt env, status_code: 403, response: "Forbidden"
+  end
+
   hostname = env.params.json["hostname"]?.try(&.as(String)) || "unknown"
   action = "heartbeat"
   now = Time.local
