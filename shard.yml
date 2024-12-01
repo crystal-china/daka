@@ -11,8 +11,6 @@ targets:
 dependencies:
   kemal:
     github: kemalcr/kemal
-  kemal-session:
-    github: kemalcr/kemal-session
   kemal-basic-auth:
     github: kemalcr/kemal-basic-auth
   sqlite3:

@@ -20,10 +20,6 @@ shards:
     git: https://github.com/kemalcr/kemal-basic-auth.git
     version: 1.0.0
 
-  kemal-session:
-    git: https://github.com/kemalcr/kemal-session.git
-    version: 1.0.0
-
   radix:
     git: https://github.com/luislavena/radix.git
     version: 0.4.1
