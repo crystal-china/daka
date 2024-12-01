@@ -80,15 +80,17 @@ get "/admin" do |env|
   DB.connect DB_FILE do |db|
     date_range = [1.days.ago, Time.local].map(&.to_s("%Y-%m-%d"))
 
-    sql = String.build do |io|
-      io << "("
-      io << date_range.map { |date| "\"#{date}\"" }.join(",")
-      io << ")"
-    end
+    sql = date_range.map { |date| "\"#{date}\"" }.join(",")
 
     records = [] of {String, String, Time, String}
 
-    db.query_each "select hostname,action,created_at,date from daka where date in #{sql} order by id desc" do |rs|
+    db.query_each "SELECT
+hostname,action,created_at,date
+FROM daka
+WHERE date IN (#{sql})
+AND
+action IN ('boot','shutdown')
+ORDER BY id DESC" do |rs|
       hostname = rs.read(String)
       action = rs.read(String)
       time = rs.read(Time).in(Time::Location.fixed(8*3600))
