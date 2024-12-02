@@ -42,7 +42,7 @@ unless db_exists?
   end
 end
 
-TIME_SPAN = 1.minute
+TIME_SPAN = ENV.fetch("DAKAINTERVAL", "1").to_i.minute
 
 # Log.setup(:debug)
 
