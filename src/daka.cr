@@ -18,8 +18,8 @@ Kemal.config.auth_handler = CustomAuthHandler
 
 basic_auth "user", ENV.fetch("DAKAPWD", "1234567")
 
-def find_db_path(name)
-  (Path["#{Process.executable_path.as(String)}/../.."] / "daka.db").expand
+def find_db_path(db_name)
+  (Path["#{Process.executable_path.as(String)}/../.."] / db_name).expand
 end
 
 DB_FILE = "sqlite3:#{find_db_path("daka.db")}"
