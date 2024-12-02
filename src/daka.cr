@@ -53,7 +53,7 @@ def update(db)
     rs.read(Time, Int64, String)
   end
 
-  if (now - last_headbeat_time > TIME_SPAN + 1.minute) && last_action != "shutdown"
+  if (now - last_headbeat_time > TIME_SPAN + rand(0.5..1.0).minutes) && last_action != "shutdown"
     #
     # 如果当前时间和最后一次保存的心跳时间间隔超过了预设的一分钟, 这通常意味着,
     # 系统在长时间断网后, 刚刚重新连接网络, 即: 系统刚刚启动或唤醒
