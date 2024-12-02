@@ -75,18 +75,16 @@ post "/daka" do |env|
   hostname = env.params.json["hostname"]?.try(&.as(String)) || "unknown"
   action = "heartbeat"
 
-  db = DB.open(DB_FILE)
+  db = DB.connect(DB_FILE) do |db|
+    #
+    # 上次心跳是关机, 那么这次心跳就是开机
+    #
+    action = "boot" if update(db)
 
-  #
-  # 上次心跳是关机, 那么这次心跳就是开机
-  #
-  action = "boot" if update(db)
-
-  db.exec("INSERT INTO daka (hostname, action) VALUES (?, ?);", hostname, action)
+    db.exec("INSERT INTO daka (hostname, action) VALUES (?, ?);", hostname, action)
+  end
 
   "success!"
-ensure
-  db.close if db
 end
 
 get "/admin" do |env|
@@ -100,16 +98,14 @@ get "/admin" do |env|
     records = [] of {String, String, Time, String}
 
     db.query_each "SELECT
-hostname,action,created_at,date
+hostname,action,date,created_at
 FROM daka
 WHERE date IN (#{sql})
 AND
 action IN ('boot','shutdown')
 ORDER BY id DESC" do |rs|
-      hostname = rs.read(String)
-      action = rs.read(String)
+      hostname, action, date = rs.read(String, String, String)
       time = rs.read(Time).in(Time::Location.fixed(8*3600))
-      date = rs.read(String)
 
       records << {hostname, action, time, date}
     end
