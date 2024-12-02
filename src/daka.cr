@@ -42,9 +42,30 @@ unless db_exists?
   end
 end
 
-time_span = 1.minute
+TIME_SPAN = 1.minute
 
 # Log.setup(:debug)
+
+def update(db)
+  now = Time.local
+
+  last_headbeat_time, last_id, last_action = db.query_one "select created_at,id,action from daka order by id desc limit 1;" do |rs|
+    rs.read(Time, Int64, String)
+  end
+
+  if (now - last_headbeat_time > TIME_SPAN + 1.minute) && last_action != "shutdown"
+    #
+    # 如果当前时间和最后一次保存的心跳时间间隔超过了预设的一分钟, 这通常意味着,
+    # 系统在长时间断网后, 刚刚重新连接网络, 即: 系统刚刚启动或唤醒
+    # 因此, 那么前一次成功的心跳的时间, 可以粗略认为是系统关机时间.
+    #
+    db.exec("update daka set action = ? where id = ?", "shutdown", last_id)
+
+    true
+  else
+    false
+  end
+end
 
 post "/daka" do |env|
   if !env.request.headers["user_agent"].starts_with?("xh/")
@@ -53,24 +74,13 @@ post "/daka" do |env|
 
   hostname = env.params.json["hostname"]?.try(&.as(String)) || "unknown"
   action = "heartbeat"
-  now = Time.local
 
   db = DB.open(DB_FILE)
 
-  last_headbeat_time, last_id = db.query_one "select created_at,id from daka order by id desc limit 1;" do |rs|
-    {rs.read(Time), rs.read(Int64)}
-  end
-
-  if now - last_headbeat_time > time_span + 1.minute
-    # 如果最后一次心跳时间, 超过了设定的心跳时间一分钟, 我们认为这是用户刚开始启动心跳
-    # 者通常意味着, 系统在长时间断网后, 刚刚重新连接网络, 即: 系统刚刚启动或唤醒
-    action = "boot"
-
-    # 因为在那个之后, 直到现在, 再没有收到过心跳.
-    # 那么前一次成功的心跳的时间, 可以粗略认为是系统关机时间.
-    # 因此更新前一次心跳的 action 为 shutdown
-    db.exec("update daka set action = ? where id = ?", "shutdown", last_id)
-  end
+  #
+  # 上次心跳是关机, 那么这次心跳就是开机
+  #
+  action = "boot" if update(db)
 
   db.exec("INSERT INTO daka (hostname, action) VALUES (?, ?);", hostname, action)
 
@@ -81,6 +91,8 @@ end
 
 get "/admin" do |env|
   DB.connect DB_FILE do |db|
+    update(db)
+
     date_range = [1.days.ago, Time.local].map(&.to_s("%Y-%m-%d"))
 
     sql = date_range.map { |date| "\"#{date}\"" }.join(",")
