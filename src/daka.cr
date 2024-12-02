@@ -53,13 +53,13 @@ def update(db)
     rs.read(Time, Int64, String)
   end
 
-  if (now - last_headbeat_time > TIME_SPAN + rand(0.5..1.0).minutes) && last_action != "shutdown"
+  if (now - last_headbeat_time > TIME_SPAN + rand(0.5..1.0).minutes) && last_action != "offline"
     #
     # 如果当前时间和最后一次保存的心跳时间间隔超过了预设的一分钟, 这通常意味着,
     # 系统在长时间断网后, 刚刚重新连接网络, 即: 系统刚刚启动或唤醒
-    # 因此, 那么前一次成功的心跳的时间, 可以粗略认为是系统关机时间.
+    # 因此, 那么前一次成功的心跳的时间, 可以粗略认为是系统离线时间.
     #
-    db.exec("update daka set action = ? where id = ?", "shutdown", last_id)
+    db.exec("update daka set action = ? where id = ?", "offline", last_id)
 
     true
   else
@@ -75,11 +75,11 @@ post "/daka" do |env|
   hostname = env.params.json["hostname"]?.try(&.as(String)) || "unknown"
   action = "heartbeat"
 
-  db = DB.connect(DB_FILE) do |db|
+  DB.connect(DB_FILE) do |db|
     #
-    # 上次心跳是关机, 那么这次心跳就是开机
+    # 上次心跳是离线, 那么这次心跳一定是是在线
     #
-    action = "boot" if update(db)
+    action = "online" if update(db)
 
     db.exec("INSERT INTO daka (hostname, action) VALUES (?, ?);", hostname, action)
   end
@@ -102,7 +102,7 @@ hostname,action,date,created_at
 FROM daka
 WHERE date IN (#{sql})
 AND
-action IN ('boot','shutdown')
+action IN ('online','offline')
 ORDER BY id DESC" do |rs|
       hostname, action, date = rs.read(String, String, String)
       time = rs.read(Time).in(Time::Location.fixed(8*3600))
