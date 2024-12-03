@@ -46,20 +46,22 @@ TIME_SPAN = ENV.fetch("DAKAINTERVAL", "1").to_i.minute
 
 # Log.setup(:debug)
 
-def update(db)
+def exceeded_the_threshold?(db)
   now = Time.local
 
   last_headbeat_time, last_id, last_action = db.query_one "select created_at,id,action from daka order by id desc limit 1;" do |rs|
     rs.read(Time, Int64, String)
   end
 
-  if (now - last_headbeat_time > TIME_SPAN + rand(0.5..1.0).minutes) && last_action != "offline"
+  if (now - last_headbeat_time > TIME_SPAN + rand(0.5..1.0).minutes)
     #
     # 如果当前时间和最后一次保存的心跳时间间隔超过了预设的一分钟, 这通常意味着,
     # 系统在长时间断网后, 刚刚重新连接网络, 即: 系统刚刚启动或唤醒
     # 因此, 那么前一次成功的心跳的时间, 可以粗略认为是系统离线时间.
     #
-    db.exec("update daka set action = ? where id = ?", "offline", last_id)
+    if last_action != "offline"
+      db.exec("update daka set action = ? where id = ?", "offline", last_id)
+    end
 
     true
   else
@@ -79,7 +81,7 @@ post "/daka" do |env|
     #
     # 上次心跳是离线, 那么这次心跳一定是是在线
     #
-    action = "online" if update(db)
+    action = "online" if exceeded_the_threshold?(db)
 
     db.exec("INSERT INTO daka (hostname, action) VALUES (?, ?);", hostname, action)
   end
@@ -89,7 +91,7 @@ end
 
 get "/admin" do |env|
   DB.connect DB_FILE do |db|
-    update(db)
+    exceeded_the_threshold?(db)
 
     date_range = [1.days.ago, Time.local].map(&.to_s("%Y-%m-%d"))
 
