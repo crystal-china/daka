@@ -59,7 +59,7 @@ def exceeded_the_threshold?(db, action)
     # 系统在长时间断网后, 刚刚重新连接网络, 即: 系统刚刚启动或唤醒
     # 因此, 那么前一次成功的心跳的时间, 可以粗略认为是系统离线时间.
     #
-    if last_action != "offline"
+    if !last_action.in? ["offline by daka", "offline by admin"]
       db.exec("update daka set action = ? where id = ?", "offline by #{action}", last_id)
     end
 
@@ -79,7 +79,7 @@ post "/daka" do |env|
 
   DB.connect(DB_FILE) do |db|
     #
-    # 上次心跳是离线, 那么这次心跳一定是是在线
+    # 上次心跳是离线, 那么这次心跳一定是在线
     #
     action = "online" if exceeded_the_threshold?(db, "daka")
 
@@ -108,7 +108,7 @@ hostname,action,date,created_at
 FROM daka
 WHERE date IN (#{sql})
 AND
-action IN ('online','offline')
+action IN ('online','offline by daka','offline by admin')
 ORDER BY id DESC" do |rs|
       hostname, action, date = rs.read(String, String, String)
       time = rs.read(Time).in(Time::Location.fixed(8*3600))
