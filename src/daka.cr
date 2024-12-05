@@ -46,7 +46,7 @@ TIME_SPAN = ENV.fetch("DAKAINTERVAL", "1").to_i.minute
 
 # Log.setup(:debug)
 
-def exceeded_the_threshold?(db)
+def exceeded_the_threshold?(db, action)
   now = Time.local
 
   last_headbeat_time, last_id, last_action = db.query_one "select created_at,id,action from daka order by id desc limit 1;" do |rs|
@@ -60,7 +60,7 @@ def exceeded_the_threshold?(db)
     # 因此, 那么前一次成功的心跳的时间, 可以粗略认为是系统离线时间.
     #
     if last_action != "offline"
-      db.exec("update daka set action = ? where id = ?", "offline", last_id)
+      db.exec("update daka set action = ? where id = ?", "offline by #{action}", last_id)
     end
 
     true
@@ -81,7 +81,7 @@ post "/daka" do |env|
     #
     # 上次心跳是离线, 那么这次心跳一定是是在线
     #
-    action = "online" if exceeded_the_threshold?(db)
+    action = "online" if exceeded_the_threshold?(db, "daka")
 
     db.exec("INSERT INTO daka (hostname, action) VALUES (?, ?);", hostname, action)
   end
@@ -91,7 +91,7 @@ end
 
 get "/admin" do |env|
   DB.connect DB_FILE do |db|
-    exceeded_the_threshold?(db)
+    exceeded_the_threshold?(db, "admin")
 
     date_range = [1.days.ago, Time.local].map(&.to_s("%Y-%m-%d"))
 
