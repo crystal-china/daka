@@ -48,31 +48,34 @@ TIME_SPAN = ENV.fetch("DAKAINTERVAL", "1").to_i.minute
 
 def exceeded_the_threshold?(db, action)
   now = Time.local
+  value = false
 
-  result = db.query_one? "select created_at,id,action from daka order by id desc limit 1;" do |rs|
-    rs.read(Time, Int64, String)
-  end
-
-  if result.nil?
-    return false
-  else
-    last_headbeat_time, last_id, last_action = result
-  end
-
-  if (now - last_headbeat_time > TIME_SPAN + rand(0.5..1.0).minutes)
-    #
-    # 如果当前时间和最后一次保存的心跳时间间隔超过了预设的一分钟, 这通常意味着,
-    # 系统在长时间断网后, 刚刚重新连接网络, 即: 系统刚刚启动或唤醒
-    # 因此, 那么前一次成功的心跳的时间, 可以粗略认为是系统离线时间.
-    #
-    if !last_action.in? ["offline by daka", "offline by admin"]
-      db.exec("update daka set action = ? where id = ?", "offline by #{action}", last_id)
+  db.transaction do |tr|
+    result = db.query_one? "select created_at,id,action from daka order by id desc limit 1;" do |rs|
+      rs.read(Time, Int64, String)
     end
 
-    true
-  else
-    false
+    if result.nil?
+      return false
+    else
+      last_headbeat_time, last_id, last_action = result
+    end
+
+    if (now - last_headbeat_time > TIME_SPAN + rand(0.5..1.0).minutes)
+      #
+      # 如果当前时间和最后一次保存的心跳时间间隔超过了预设的一分钟, 这通常意味着,
+      # 系统在长时间断网后, 刚刚重新连接网络, 即: 系统刚刚启动或唤醒
+      # 因此, 那么前一次成功的心跳的时间, 可以粗略认为是系统离线时间.
+      #
+      if !last_action.in? ["offline by daka", "offline by admin"]
+        db.exec("update daka set action = ? where id = ?", "offline by #{action}", last_id)
+      end
+
+      value = true
+    end
   end
+
+  value
 end
 
 post "/daka" do |env|
