@@ -89,6 +89,10 @@ post "/daka" do |env|
   "success!"
 end
 
+get "/version" do |env|
+  Daka::VERSION
+end
+
 get "/admin" do |env|
   DB.connect DB_FILE do |db|
     exceeded_the_threshold?(db, "admin")
