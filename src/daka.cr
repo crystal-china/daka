@@ -49,8 +49,14 @@ TIME_SPAN = ENV.fetch("DAKAINTERVAL", "1").to_i.minute
 def exceeded_the_threshold?(db, action)
   now = Time.local
 
-  last_headbeat_time, last_id, last_action = db.query_one "select created_at,id,action from daka order by id desc limit 1;" do |rs|
+  result = db.query_one? "select created_at,id,action from daka order by id desc limit 1;" do |rs|
     rs.read(Time, Int64, String)
+  end
+
+  if result.nil?
+    return false
+  else
+    last_headbeat_time, last_id, last_action = result
   end
 
   if (now - last_headbeat_time > TIME_SPAN + rand(0.5..1.0).minutes)
