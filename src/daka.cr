@@ -46,12 +46,18 @@ TIME_SPAN = ENV.fetch("DAKAINTERVAL", "1").to_i.minute
 
 # Log.setup(:debug)
 
-def exceeded_the_threshold?(db)
+def exceeded_the_threshold?(db, hostname)
   now = Time.local
   value = false
 
   db.transaction do |tr|
-    result = db.query_one? "select created_at,id,action from daka order by id desc limit 1;" do |rs|
+    result = db.query_one?(
+      "SELECT created_at,id,action
+FROM daka
+WHERE hostname = ?
+ORDER BY id DESC
+LIMIT 1;
+", hostname) do |rs|
       rs.read(Time, Int64, String)
     end
 
@@ -86,14 +92,19 @@ post "/daka" do |env|
     halt env, status_code: 403, response: "Forbidden"
   end
 
-  hostname = env.params.json["hostname"]?.try(&.as(String)) || "unknown"
+  hostname = env.params.json["hostname"]?.try(&.as(String))
+
+  if hostname.nil?
+    halt env, status_code: 403, response: "Need a host name!"
+  end
+
   action = "heartbeat"
 
   DB.connect(DB_FILE) do |db|
     #
     # 上次心跳是离线, 那么这次心跳一定是在线
     #
-    action = "online" if exceeded_the_threshold?(db)
+    action = "online" if exceeded_the_threshold?(db, hostname)
 
     db.exec("INSERT INTO daka (hostname, action) VALUES (?, ?);", hostname, action)
   end
@@ -101,13 +112,21 @@ post "/daka" do |env|
   "success!"
 end
 
-get "/version" do |env|
+get "/version" do
   Daka::VERSION
 end
 
 get "/admin" do |env|
   DB.connect DB_FILE do |db|
-    exceeded_the_threshold?(db)
+    hostnames = [] of String
+
+    db.query_each "SELECT DISTINCT hostname FROM daka;" do |rs|
+      hostnames << rs.read(String)
+    end
+
+    hostnames.each do |hostname|
+      exceeded_the_threshold?(db, hostname)
+    end
 
     date_range = [1.days.ago, Time.local].map(&.to_s("%Y-%m-%d"))
 
