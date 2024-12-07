@@ -46,7 +46,7 @@ TIME_SPAN = ENV.fetch("DAKAINTERVAL", "1").to_i.minute
 
 # Log.setup(:debug)
 
-def exceeded_the_threshold?(db, hostname)
+def exceeded_the_threshold?(db, hostname, action)
   now = Time.local
   value = false
 
@@ -61,11 +61,9 @@ LIMIT 1;
       rs.read(Time, Int64, String)
     end
 
-    if result.nil?
-      return false
-    else
-      last_headbeat_time, last_id, last_action = result
-    end
+    return false if result.nil?
+
+    last_headbeat_time, last_id, last_action = result
 
     if (now - last_headbeat_time > TIME_SPAN + rand(70..120).seconds)
       #
@@ -73,11 +71,12 @@ LIMIT 1;
       # 系统在长时间断网后, 刚刚重新连接网络, 即: 系统刚刚启动或唤醒
       # 因此, 那么前一次成功的心跳的时间, 可以粗略认为是系统离线时间.
       #
-      case last_action
-      when "heartbeat"
-        db.exec("update daka set action = ? where id = ?", "offline", last_id)
-      when "online"
-        db.exec("update daka set action = ? where id = ?", "timeout", last_id)
+      if last_action == "heartbeat"
+        db.exec("update daka set action = ? where id = ?", "offline by #{action}", last_id)
+      end
+
+      if last_action == "online" && action == "daka"
+        db.exec("update daka set action = ? where id = ?", "timeout by daka", last_id)
       end
 
       value = true
@@ -104,7 +103,7 @@ post "/daka" do |env|
     #
     # 上次心跳是离线, 那么这次心跳一定是在线
     #
-    action = "online" if exceeded_the_threshold?(db, hostname)
+    action = "online" if exceeded_the_threshold?(db, hostname, "daka")
 
     db.exec("INSERT INTO daka (hostname, action) VALUES (?, ?);", hostname, action)
   end
@@ -125,7 +124,7 @@ get "/admin" do |env|
     end
 
     hostnames.each do |hostname|
-      exceeded_the_threshold?(db, hostname)
+      exceeded_the_threshold?(db, hostname, "admin")
     end
 
     date_range = [1.days.ago, Time.local].map(&.to_s("%Y-%m-%d"))
@@ -139,7 +138,7 @@ hostname,action,date,created_at
 FROM daka
 WHERE date IN (#{sql})
 AND
-action IN ('online','offline')
+action IN ('online','offline','offline by daka','offline by admin','timeout by daka')
 ORDER BY id DESC" do |rs|
       hostname, action, date = rs.read(String, String, String)
       time = rs.read(Time).in(Time::Location.fixed(8*3600))
