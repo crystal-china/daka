@@ -84,7 +84,7 @@ WantedBy=timers.target
 
 set -eu
 
-/usr/bin/xhs your_server/daka hostname=${HOSTNAME} --ignore-stdin
+/usr/bin/xhs your_server/daka hostname=${HOSTNAME} --ignore-stdin --timeout=10
 ```
 
 4. 启动 timer 
