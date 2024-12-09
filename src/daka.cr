@@ -139,14 +139,17 @@ FROM daka
 WHERE date IN (#{sql})
 AND
 action IN ('online','offline','offline by daka','offline by admin','timeout by daka')
-ORDER BY id DESC" do |rs|
+ORDER BY id" do |rs|
       hostname, action, date = rs.read(String, String, String)
       time = rs.read(Time).in(Time::Location.fixed(8*3600))
 
       records << {hostname, action, time, date}
     end
 
-    dates = records.group_by { |e| e[3] }
+    dates = records
+      .group_by { |e| e[3] }
+      .transform_values { |v| v.group_by { |e| e[0] }.values.flatten }
+      .to_a.reverse
 
     if env.request.headers["user_agent"].starts_with?("xh/")
       table = Tallboy.table do
@@ -161,11 +164,7 @@ ORDER BY id DESC" do |rs|
         dates.each do |date|
           header date[0], align: :left
 
-          data = date[1]
-            .sort_by { |e| e[2] }
-            .map { |e| [e[0], e[1], e[2].to_s("%H:%M:%S")] }
-
-          rows data
+          rows date[1].map { |e| [e[0], e[1], e[2].to_s("%H:%M:%S")] }
         end
       end
 
