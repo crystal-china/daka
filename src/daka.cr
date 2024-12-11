@@ -48,7 +48,7 @@ TIME_SPAN = ENV.fetch("DAKAINTERVAL", "1").to_i.minute
 
 def exceeded_the_threshold?(db, hostname, action)
   now = Time.local
-  value = false
+  value = nil
 
   db.transaction do |tr|
     result = db.query_one?(
@@ -75,11 +75,11 @@ LIMIT 1;
         db.exec("update daka set action = ? where id = ?", "offline by #{action}", last_id)
       end
 
-      if last_action == "online" && action == "daka"
+      if last_action == "online"
         db.exec("update daka set action = ? where id = ?", "timeout by daka", last_id)
       end
 
-      value = true
+      value = "online"
     end
   end
 
@@ -103,9 +103,13 @@ post "/daka" do |env|
     #
     # 上次心跳是离线, 那么这次心跳一定是在线
     #
-    action = "online" if exceeded_the_threshold?(db, hostname, "daka")
+    action = exceeded_the_threshold?(db, hostname, "daka")
 
-    db.exec("INSERT INTO daka (hostname, action) VALUES (?, ?);", hostname, action)
+    db.exec(
+      "INSERT INTO daka (hostname, action) VALUES (?, ?);",
+      hostname,
+      action
+    ) unless action.nil?
   end
 
   "success!"
