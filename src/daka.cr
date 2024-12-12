@@ -46,9 +46,9 @@ TIME_SPAN = ENV.fetch("DAKAINTERVAL", "1").to_i.minute
 
 # Log.setup(:debug)
 
-def exceeded_the_threshold?(db, hostname, action)
+def check_or_update(db, hostname, action) : String
   now = Time.local
-  value = nil
+  value = "heartbeat"
 
   db.transaction do |tr|
     result = db.query_one?(
@@ -61,7 +61,7 @@ LIMIT 1;
       rs.read(Time, Int64, String)
     end
 
-    return false if result.nil?
+    return value if result.nil?
 
     last_headbeat_time, last_id, last_action = result
 
@@ -97,19 +97,15 @@ post "/daka" do |env|
     halt env, status_code: 403, response: "Need a host name!"
   end
 
-  action = "heartbeat"
-
   DB.connect(DB_FILE) do |db|
     #
     # 上次心跳是离线, 那么这次心跳一定是在线
     #
-    action = exceeded_the_threshold?(db, hostname, "daka")
-
     db.exec(
       "INSERT INTO daka (hostname, action) VALUES (?, ?);",
       hostname,
-      action
-    ) unless action.nil?
+      check_or_update(db, hostname, "daka")
+    )
   end
 
   "success!"
@@ -128,7 +124,7 @@ get "/admin" do |env|
     end
 
     hostnames.each do |hostname|
-      exceeded_the_threshold?(db, hostname, "admin")
+      check_or_update(db, hostname, "admin")
     end
 
     date_range = [1.days.ago, Time.local].map(&.to_s("%Y-%m-%d"))
