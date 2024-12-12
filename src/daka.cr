@@ -65,7 +65,7 @@ LIMIT 1;
 
     last_headbeat_time, last_id, last_action = result
 
-    if (now - last_headbeat_time > TIME_SPAN + rand(70..120).seconds)
+    if (now - last_headbeat_time > TIME_SPAN + 2.minutes)
       #
       # 如果当前时间和最后一次保存的心跳时间间隔超过了预设的一分钟, 这通常意味着,
       # 系统在长时间断网后, 刚刚重新连接网络, 即: 系统刚刚启动或唤醒
