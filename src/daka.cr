@@ -46,9 +46,9 @@ TIME_SPAN = ENV.fetch("DAKAINTERVAL", "1").to_i.minute
 
 # Log.setup(:debug)
 
-def check_or_update(db, hostname, action) : String
+def next_record_action(db, hostname) : String
   now = Time.local
-  value = "heartbeat"
+  action = "heartbeat"
 
   db.transaction do |tr|
     result = db.query_one?(
@@ -61,7 +61,7 @@ LIMIT 1;
       rs.read(Time, Int64, String)
     end
 
-    return value if result.nil?
+    return action if result.nil?
 
     last_headbeat_time, last_id, last_action = result
 
@@ -72,18 +72,18 @@ LIMIT 1;
       # 因此, 那么前一次成功的心跳的时间, 可以粗略认为是系统离线时间.
       #
       if last_action == "heartbeat"
-        db.exec("update daka set action = ? where id = ?", "offline by #{action}", last_id)
+        db.exec("update daka set action = ? where id = ?", "offline", last_id)
       end
 
       if last_action == "online"
-        db.exec("update daka set action = ? where id = ?", "timeout by daka", last_id)
+        db.exec("update daka set action = ? where id = ?", "timeout", last_id)
       end
 
-      value = "online"
+      action = "online"
     end
   end
 
-  value
+  action
 end
 
 post "/daka" do |env|
@@ -104,7 +104,7 @@ post "/daka" do |env|
     db.exec(
       "INSERT INTO daka (hostname, action) VALUES (?, ?);",
       hostname,
-      check_or_update(db, hostname, "daka")
+      next_record_action(db, hostname)
     )
   end
 
@@ -124,7 +124,7 @@ get "/admin" do |env|
     end
 
     hostnames.each do |hostname|
-      check_or_update(db, hostname, "admin")
+      next_record_action(db, hostname)
     end
 
     date_range = [1.days.ago, Time.local].map(&.to_s("%Y-%m-%d"))
@@ -138,7 +138,7 @@ hostname,action,date,created_at
 FROM daka
 WHERE date IN (#{sql})
 AND
-action IN ('online','offline','offline by daka','offline by admin','timeout by daka')
+action IN ('online','offline','timeout')
 ORDER BY id" do |rs|
       hostname, action, date = rs.read(String, String, String)
       time = rs.read(Time).in(Time::Location.fixed(8*3600))
