@@ -62,6 +62,7 @@ jobs:
         id: release
         run: |
           echo "ASSERT_NAME=${{env.ASSERT_NAME}}" >> $GITHUB_OUTPUT
+          git config --global --add safe.directory /__w/daka/daka
           shards build --production --release --progress --no-debug -Dstrict_multi_assign -Dno_number_autocast ${{env.BUILD_ARGS}}
           tar zcvf ${{env.ASSERT_NAME}} ${{env.BINARY_NAME}} LICENSE
       - name: Release
