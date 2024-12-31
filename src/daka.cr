@@ -116,6 +116,10 @@ get "/version" do
 end
 
 get "/admin" do |env|
+  # days 表示显示之前几天的记录, 默认仅显示之前一天的记录.
+  days = (env.params.query["days"]? || 1).to_i
+  date_ranges = [] of String
+
   DB.connect DB_FILE do |db|
     hostnames = [] of String
 
@@ -127,9 +131,12 @@ get "/admin" do |env|
       next_record_action(db, hostname)
     end
 
-    date_range = [1.days.ago, Time.local].map(&.to_s("%Y-%m-%d"))
+    (days..1).step(-1).each do |day|
+      date_ranges << day.days.ago.to_s("%Y-%m-%d")
+    end
+    date_ranges << Time.local.to_s("%Y-%m-%d")
 
-    sql = date_range.map { |date| "\"#{date}\"" }.join(",")
+    sql = date_ranges.map { |date| "\"#{date}\"" }.join(",")
 
     records = [] of {String, String, Time, String}
 
