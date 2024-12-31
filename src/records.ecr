@@ -12,23 +12,53 @@
         <th>动作</th>
         <th>时间</th>
       </tr>
+      <%
+      h1 = {} of String => Time
+      h2 = Hash(String, Array(Time::Span)).new([] of Time::Span)
+      %>
+
       <% dates.each do |date| %>
+        <% current_date = date[0] %>
+
         <tr>
-          <th colspan="3" style="text-align: center;"><%= date[0] %></th>
+          <th colspan="3" style="text-align: center;"><%= current_date %></th>
         </tr>
+
         <% date[1].each do |record| %>
+          <%
+          hostname, action, time, _ = record
+
+          case action
+          when "online"
+            h1[hostname] = time
+          when "offline"
+            if h1[hostname]?
+              key = "#{current_date}-#{hostname}"
+              # h2[key] = h2[key].dup unless h2.has_key?(key)
+              h2[key] += [time - h1[hostname].not_nil!]
+              h1 = {} of String => Time
+            end
+          end
+          %>
           <tr>
-            <td><%= record[0] %></td>
-            <td><%= record[1] %></td>
-            <td><%= record[2].to_s("%H:%M:%S") %></td>
+            <td><%= hostname %></td>
+            <td><%= action %></td>
+            <td><%= time.to_s("%H:%M:%S") %></td>
           </tr>
-          <% if record[1] == "offline" %>
+          <% if action == "offline" %>
             <tr style="background: #aaa;">
               <td colspan="3"></td>
             </tr>
           <% end %>
+        <% end %> <!-- record each -->
+
+        <% h2.select {|e| e.starts_with?(current_date) }.each do |k, v| %>
+          <tr>
+            <td colspan="3" style="text-align: center;"><%= k.sub("#{current_date}-", "") %>: <%= v.sum %></td>
+          </tr>
         <% end %>
-      <% end %>
+
+      <% end %> <!-- date each -->
     </table>
   </body>
 </html>
