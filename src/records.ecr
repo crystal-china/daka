@@ -14,7 +14,7 @@
       </tr>
       <%
       h1 = {} of String => Time
-      h2 = Hash(String, Array(Time::Span)).new([] of Time::Span)
+      h2 = Hash(String, Array(Time::Span)).new() { |h, k| h[k] = [] of Time::Span }
       %>
 
       <% dates.each do |date| %>
@@ -34,8 +34,7 @@
           when "offline"
             if h1[hostname]?
               key = "#{current_date}-#{hostname}"
-              # h2[key] = h2[key].dup unless h2.has_key?(key)
-              h2[key] += [time - h1[hostname].not_nil!]
+              h2[key] << time - h1[hostname].not_nil!
               h1 = {} of String => Time
             end
           end
