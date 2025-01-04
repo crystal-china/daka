@@ -39,10 +39,7 @@ DAKAPWD=newpass bin/daka -b 127.0.0.1 -p 3001
 
 客户端请使用 [xh](https://github.com/ducaale/xh)
 
-### 打卡
-
 以 Linux 下使用为例:
-
 
 ```sh
 $: xhs -a user:1234567 https://your_server/daka hostname=${HOSTNAME} --ignore-stdin
@@ -52,7 +49,9 @@ hostname 是必须的, 用来区分不同用户.
 
 Linux 系统可以通过 systemd, 实现定时打卡.
 
-### 创建 service 以及 timer 文件.
+### 在 Linux 定时打卡
+
+#### 创建 service 以及 timer 文件.
 
  ~/.config/systemd/user/daka.service
 
@@ -83,7 +82,7 @@ Linux 系统可以通过 systemd, 实现定时打卡.
  WantedBy=timers.target
  ```
  
- ### 创建打卡脚本:
+ #### 创建打卡脚本:
  
 ```sh
  #!/usr/bin/env sh
@@ -93,10 +92,58 @@ set -eu
 /usr/bin/xhs https://your_server/daka hostname=${HOSTNAME} --ignore-stdin --timeout=10
 ``` 
 
-### 启动 timer systemd 服务
+#### 启动 timer systemd 服务
 
 ```sh
 $: systemctl --user enable daka.timer --now
+```
+
+### 在 Windows 定时打卡
+
+#### 编写如下bat批处理脚本，用来每隔一分钟执行一下命令：
+
+`.\xh.exe https://your_server/daka hostname=myhostname --ignore-stdin --timeout=5`
+
+其中`/b`用来静默执行，作用就是执行`xh.exe`的时候不在弹出命令提示符窗口
+
+> 使用时请替换下面的路径（`xh.exe`）
+
+C:\Users\zw963\daka.bat
+
+```bat
+@echo off
+chcp 65001 >nul
+:loop
+start /b "" "C:\Users\zw963\xh.exe" "https://your_server/daka" hostname=myhostname --ignore-stdin --timeout=5 >nul 2>&1
+@rem echo 打卡时间：%date% %time% > con:
+timeout /t 60 /nobreak >nul
+goto loop
+```
+
+#### 现在编写一个`vbs`脚本，用来执行上面的`bat`
+
+至于为什么要用`vbs`，是因为用`vbs`可以在执行上述`bat`的时候也不弹出命令提示符。
+
+`vbs`命令如下：
+
+> 使用时请替换下面的路径（`daka.bat`）
+
+C:\Users\zw963\daka.vbs
+
+```vbscript
+Set ws = CreateObject("WScript.Shell")
+ws.Run "C:\Users\zw963\daka.bat", 0, False
+```
+
+### 将`VBS`脚本设置为开机自启（会在用户登录时自动运行）
+
+运行如下`reg`文件
+
+> 使用时请替换下面的路径（`daka.vbs`）
+
+```
+@echo off
+reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Run" /v "Run_daka_VBS" /t REG_SZ /d "C:\Users\zw963\daka.vbs" /f
 ```
 
 ## Development
