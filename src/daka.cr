@@ -1,22 +1,9 @@
 require "./daka/**"
 require "kemal"
-require "kemal-basic-auth"
 require "db"
 require "sqlite3"
 require "tallboy"
 
-class CustomAuthHandler < Kemal::BasicAuth::Handler
-  only ["/admin"]
-
-  def call(context)
-    return call_next(context) unless only_match?(context)
-    super
-  end
-end
-
-Kemal.config.auth_handler = CustomAuthHandler
-
-basic_auth "user", ENV.fetch("DAKAPWD", "1234567")
 
 def find_db_path(db_name)
   (Path["#{Process.executable_path.as(String)}/../.."] / db_name).expand
@@ -112,6 +99,7 @@ post "/daka" do |env|
 end
 
 get "/version" do
+  p! "1"*100
   Daka::VERSION
 end
 
