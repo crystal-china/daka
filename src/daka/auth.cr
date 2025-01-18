@@ -1,4 +1,5 @@
 require "kemal-basic-auth"
+
 class CustomAuthHandler < Kemal::BasicAuth::Handler
   only ["/admin"]
 

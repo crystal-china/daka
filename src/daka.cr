@@ -4,7 +4,6 @@ require "db"
 require "sqlite3"
 require "tallboy"
 
-
 def find_db_path(db_name)
   (Path["#{Process.executable_path.as(String)}/../.."] / db_name).expand
 end
