@@ -74,8 +74,6 @@ ORDER BY id" do |rs|
     records << {hostname, action, time, date}
   end
 
-  conn.close
-
   dates = records
     .group_by { |e| e[3] }
     .transform_values { |v| v.group_by { |e| e[0] }.values.flatten }
@@ -102,6 +100,8 @@ ORDER BY id" do |rs|
   else
     render "src/records.ecr"
   end
+ensure
+  conn.close if conn
 end
 
 Kemal.run
