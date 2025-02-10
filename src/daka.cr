@@ -19,14 +19,14 @@ post "/daka" do |env|
     halt env, status_code: 403, response: "Need a host name!"
   end
 
-  daka_db.conn do |db|
+  daka_db.conn do |conn|
     #
     # 上次心跳是离线, 那么这次心跳一定是在线
     #
-    db.exec(
+    conn.exec(
       "INSERT INTO daka (hostname, action) VALUES (?, ?);",
       hostname,
-      next_record_action(db, hostname)
+      next_record_action(conn, hostname)
     )
   end
 
@@ -42,14 +42,14 @@ get "/admin" do |env|
   days = (env.params.query["days"]? || 1).to_i
   date_ranges = [] of String
   hostnames = [] of String
-  db = daka_db.conn
+  conn = daka_db.conn
 
-  db.query_each "SELECT DISTINCT hostname FROM daka;" do |rs|
+  conn.query_each "SELECT DISTINCT hostname FROM daka;" do |rs|
     hostnames << rs.read(String)
   end
 
   hostnames.each do |hostname|
-    next_record_action(db, hostname)
+    next_record_action(conn, hostname)
   end
 
   (days..1).step(-1).each do |day|
@@ -61,7 +61,7 @@ get "/admin" do |env|
 
   records = [] of {String, String, Time, String}
 
-  db.query_each "SELECT
+  conn.query_each "SELECT
 hostname,action,date,created_at
 FROM daka
 WHERE date IN (#{sql})
@@ -74,7 +74,7 @@ ORDER BY id" do |rs|
     records << {hostname, action, time, date}
   end
 
-  db.close
+  conn.close
 
   dates = records
     .group_by { |e| e[3] }
@@ -106,12 +106,12 @@ end
 
 Kemal.run
 
-private def next_record_action(db, hostname) : String
+private def next_record_action(conn, hostname) : String
   now = Time.local
   action = "heartbeat"
 
-  db.transaction do |tr|
-    result = db.query_one?(
+  conn.transaction do |tr|
+    result = conn.query_one?(
       "SELECT created_at,id,action
 FROM daka
 WHERE hostname = ?
@@ -132,11 +132,11 @@ LIMIT 1;
       # 因此, 那么前一次成功的心跳的时间, 可以粗略认为是系统离线时间.
       #
       if last_action == "heartbeat"
-        db.exec("update daka set action = ? where id = ?", "offline", last_id)
+        conn.exec("update daka set action = ? where id = ?", "offline", last_id)
       end
 
       if last_action == "online"
-        db.exec("update daka set action = ? where id = ?", "timeout", last_id)
+        conn.exec("update daka set action = ? where id = ?", "timeout", last_id)
       end
 
       action = "online"
