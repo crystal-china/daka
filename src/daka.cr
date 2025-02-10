@@ -1,54 +1,12 @@
 require "kemal"
 require "tallboy"
-require "./daka/version"
-require "./daka/db"
 require "./daka/auth"
+require "./daka/db"
+require "./daka/version"
 
 TIME_SPAN = ENV.fetch("DAKAINTERVAL", "1").to_i.minute
 
-# Log.setup(:debug)
-
-my_db = Daka::DB.new
-
-def next_record_action(db, hostname) : String
-  now = Time.local
-  action = "heartbeat"
-
-  db.transaction do |tr|
-    result = db.query_one?(
-      "SELECT created_at,id,action
-FROM daka
-WHERE hostname = ?
-ORDER BY id DESC
-LIMIT 1;
-", hostname) do |rs|
-      rs.read(Time, Int64, String)
-    end
-
-    return action if result.nil?
-
-    last_headbeat_time, last_id, last_action = result
-
-    if (now - last_headbeat_time > TIME_SPAN + 2.minutes)
-      #
-      # 如果当前时间和最后一次保存的心跳时间间隔超过了预设的一分钟, 这通常意味着,
-      # 系统在长时间断网后, 刚刚重新连接网络, 即: 系统刚刚启动或唤醒
-      # 因此, 那么前一次成功的心跳的时间, 可以粗略认为是系统离线时间.
-      #
-      if last_action == "heartbeat"
-        db.exec("update daka set action = ? where id = ?", "offline", last_id)
-      end
-
-      if last_action == "online"
-        db.exec("update daka set action = ? where id = ?", "timeout", last_id)
-      end
-
-      action = "online"
-    end
-  end
-
-  action
-end
+daka_db = Daka::DB.new
 
 post "/daka" do |env|
   if !env.request.headers["user_agent"].starts_with?("xh/")
@@ -61,7 +19,7 @@ post "/daka" do |env|
     halt env, status_code: 403, response: "Need a host name!"
   end
 
-  my_db.conn do |db|
+  daka_db.conn do |db|
     #
     # 上次心跳是离线, 那么这次心跳一定是在线
     #
@@ -84,7 +42,7 @@ get "/admin" do |env|
   days = (env.params.query["days"]? || 1).to_i
   date_ranges = [] of String
   hostnames = [] of String
-  db = my_db.conn
+  db = daka_db.conn
 
   db.query_each "SELECT DISTINCT hostname FROM daka;" do |rs|
     hostnames << rs.read(String)
@@ -147,3 +105,43 @@ ORDER BY id" do |rs|
 end
 
 Kemal.run
+
+private def next_record_action(db, hostname) : String
+  now = Time.local
+  action = "heartbeat"
+
+  db.transaction do |tr|
+    result = db.query_one?(
+      "SELECT created_at,id,action
+FROM daka
+WHERE hostname = ?
+ORDER BY id DESC
+LIMIT 1;
+", hostname) do |rs|
+      rs.read(Time, Int64, String)
+    end
+
+    return action if result.nil?
+
+    last_headbeat_time, last_id, last_action = result
+
+    if (now - last_headbeat_time > TIME_SPAN + 2.minutes)
+      #
+      # 如果当前时间和最后一次保存的心跳时间间隔超过了预设的一分钟, 这通常意味着,
+      # 系统在长时间断网后, 刚刚重新连接网络, 即: 系统刚刚启动或唤醒
+      # 因此, 那么前一次成功的心跳的时间, 可以粗略认为是系统离线时间.
+      #
+      if last_action == "heartbeat"
+        db.exec("update daka set action = ? where id = ?", "offline", last_id)
+      end
+
+      if last_action == "online"
+        db.exec("update daka set action = ? where id = ?", "timeout", last_id)
+      end
+
+      action = "online"
+    end
+  end
+
+  action
+end

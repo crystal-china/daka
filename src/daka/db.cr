@@ -1,20 +1,12 @@
 require "db"
 require "sqlite3"
 
+# DB::Log.level = :debug
+
 module Daka
   class DB
     def initialize
-      if !db_exists?
-        ::DB.connect db_url do |conn|
-          conn.exec "create table if not exists daka (
-                id INTEGER PRIMARY KEY,
-                hostname TEXT,
-                action TEXT,
-                date DATETIME DEFAULT CURRENT_DATE,
-                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-      );"
-        end
-      end
+      create_db unless db_exists?
     end
 
     def conn
@@ -37,6 +29,18 @@ module Daka
       db_file = db_url.split(':')[1]
 
       File.exists?(db_file) && File.info(db_file).size > 0
+    end
+
+    private def create_db
+      ::DB.connect db_url do |conn|
+        conn.exec "create table if not exists daka (
+                id INTEGER PRIMARY KEY,
+                hostname TEXT,
+                action TEXT,
+                date DATETIME DEFAULT CURRENT_DATE,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      );"
+      end
     end
   end
 end
