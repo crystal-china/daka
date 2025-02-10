@@ -69,9 +69,9 @@ AND
 action IN ('online','offline','timeout')
 ORDER BY id" do |rs|
     hostname, action, date = rs.read(String, String, String)
-    time = rs.read(Time).in(Time::Location.fixed(8*3600))
+    created_at = rs.read(Time).in(Time::Location.fixed(8*3600))
 
-    records << {hostname, action, time, date}
+    records << {hostname, action, created_at, date}
   end
 
   dates = records
