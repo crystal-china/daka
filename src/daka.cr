@@ -1,36 +1,14 @@
-require "./daka/**"
 require "kemal"
-require "db"
-require "sqlite3"
 require "tallboy"
-
-def find_db_path(db_name)
-  (Path["#{Process.executable_path.as(String)}/../.."] / db_name).expand
-end
-
-DB_FILE = "sqlite3:#{find_db_path("daka.db")}"
-
-def db_exists?
-  db_file = DB_FILE.split(':')[1]
-
-  File.exists?(db_file) && File.info(db_file).size > 0
-end
-
-unless db_exists?
-  DB.connect DB_FILE do |db|
-    db.exec "create table if not exists daka (
-            id INTEGER PRIMARY KEY,
-            hostname TEXT,
-            action TEXT,
-            date DATETIME DEFAULT CURRENT_DATE,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-  );"
-  end
-end
+require "./daka/version"
+require "./daka/db"
+require "./daka/auth"
 
 TIME_SPAN = ENV.fetch("DAKAINTERVAL", "1").to_i.minute
 
 # Log.setup(:debug)
+
+my_db = Daka::DB.new
 
 def next_record_action(db, hostname) : String
   now = Time.local
@@ -83,7 +61,7 @@ post "/daka" do |env|
     halt env, status_code: 403, response: "Need a host name!"
   end
 
-  DB.connect(DB_FILE) do |db|
+  my_db.conn do |db|
     #
     # 上次心跳是离线, 那么这次心跳一定是在线
     #
@@ -98,7 +76,6 @@ post "/daka" do |env|
 end
 
 get "/version" do
-  p! "1"*100
   Daka::VERSION
 end
 
@@ -106,66 +83,66 @@ get "/admin" do |env|
   # days 表示显示之前几天的记录, 默认仅显示之前一天的记录.
   days = (env.params.query["days"]? || 1).to_i
   date_ranges = [] of String
+  hostnames = [] of String
+  db = my_db.conn
 
-  DB.connect DB_FILE do |db|
-    hostnames = [] of String
+  db.query_each "SELECT DISTINCT hostname FROM daka;" do |rs|
+    hostnames << rs.read(String)
+  end
 
-    db.query_each "SELECT DISTINCT hostname FROM daka;" do |rs|
-      hostnames << rs.read(String)
-    end
+  hostnames.each do |hostname|
+    next_record_action(db, hostname)
+  end
 
-    hostnames.each do |hostname|
-      next_record_action(db, hostname)
-    end
+  (days..1).step(-1).each do |day|
+    date_ranges << day.days.ago.to_s("%Y-%m-%d")
+  end
+  date_ranges << Time.local.to_s("%Y-%m-%d")
 
-    (days..1).step(-1).each do |day|
-      date_ranges << day.days.ago.to_s("%Y-%m-%d")
-    end
-    date_ranges << Time.local.to_s("%Y-%m-%d")
+  sql = date_ranges.map { |date| "\"#{date}\"" }.join(",")
 
-    sql = date_ranges.map { |date| "\"#{date}\"" }.join(",")
+  records = [] of {String, String, Time, String}
 
-    records = [] of {String, String, Time, String}
-
-    db.query_each "SELECT
+  db.query_each "SELECT
 hostname,action,date,created_at
 FROM daka
 WHERE date IN (#{sql})
 AND
 action IN ('online','offline','timeout')
 ORDER BY id" do |rs|
-      hostname, action, date = rs.read(String, String, String)
-      time = rs.read(Time).in(Time::Location.fixed(8*3600))
+    hostname, action, date = rs.read(String, String, String)
+    time = rs.read(Time).in(Time::Location.fixed(8*3600))
 
-      records << {hostname, action, time, date}
-    end
+    records << {hostname, action, time, date}
+  end
 
-    dates = records
-      .group_by { |e| e[3] }
-      .transform_values { |v| v.group_by { |e| e[0] }.values.flatten }
-      .to_a.reverse
+  db.close
 
-    if env.request.headers["user_agent"].starts_with?("xh/")
-      table = Tallboy.table do
-        columns do
-          add "hostname"
-          add "action"
-          add "time"
-        end
+  dates = records
+    .group_by { |e| e[3] }
+    .transform_values { |v| v.group_by { |e| e[0] }.values.flatten }
+    .to_a.reverse
 
-        header
-
-        dates.each do |date|
-          header date[0], align: :left
-
-          rows date[1].map { |e| [e[0], e[1], e[2].to_s("%H:%M:%S")] }
-        end
+  if env.request.headers["user_agent"].starts_with?("xh/")
+    table = Tallboy.table do
+      columns do
+        add "hostname"
+        add "action"
+        add "time"
       end
 
-      table.render.to_s
-    else
-      render "src/records.ecr"
+      header
+
+      dates.each do |date|
+        header date[0], align: :left
+
+        rows date[1].map { |e| [e[0], e[1], e[2].to_s("%H:%M:%S")] }
+      end
     end
+
+    table.render.to_s
+  else
+    render "src/records.ecr"
   end
 end
 
