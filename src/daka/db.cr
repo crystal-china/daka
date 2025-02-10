@@ -5,6 +5,8 @@ require "sqlite3"
 
 module Daka
   class DB
+    getter db_url : String {"sqlite3:#{find_db_path("daka.db")}"}
+
     def initialize
       create_db unless db_exists?
     end
@@ -19,10 +21,6 @@ module Daka
 
     private def find_db_path(db_name)
       (Path["#{Process.executable_path.as(String)}/../.."] / db_name).expand
-    end
-
-    private def db_url
-      @db_url ||= "sqlite3:#{find_db_path("daka.db")}"
     end
 
     private def db_exists?
