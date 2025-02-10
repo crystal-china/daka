@@ -22,7 +22,7 @@ module Daka
     end
 
     private def db_url
-      "sqlite3:#{find_db_path("daka.db")}"
+      @db_url ||= "sqlite3:#{find_db_path("daka.db")}"
     end
 
     private def db_exists?
