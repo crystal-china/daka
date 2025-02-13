@@ -59,7 +59,7 @@ get "/admin" do |env|
 
   sql = date_ranges.map { |date| "\"#{date}\"" }.join(",")
 
-  records = [] of {String, String, Time, String}
+  records = [] of {hostname: String, action: String, created_at: Time, date: String}
 
   conn.query_each "SELECT
 hostname,action,date,created_at
@@ -71,13 +71,12 @@ ORDER BY id" do |rs|
     hostname, action, date = rs.read(String, String, String)
     created_at = rs.read(Time).in(Time::Location.fixed(8*3600))
 
-    records << {hostname, action, created_at, date}
+    records << {hostname: hostname, action: action, created_at: created_at, date: date}
   end
 
   dates = records
-    .group_by { |e| e[3] }
-    .transform_values { |v| v.group_by { |e| e[0] }.values.flatten }
-    .to_a.reverse
+    .group_by { |e| e[:date] }
+    .transform_values { |v| v.sort_by { |e| e[:hostname] } }
 
   if env.request.headers["user_agent"].starts_with?("xh/")
     table = Tallboy.table do
@@ -92,7 +91,7 @@ ORDER BY id" do |rs|
       dates.each do |date|
         header date[0], align: :left
 
-        rows date[1].map { |e| [e[0], e[1], e[2].to_s("%H:%M:%S")] }
+        rows date[1].map { |e| [e[:hostname], e[:action], e[:created_at].to_s("%H:%M:%S")] }
       end
     end
 

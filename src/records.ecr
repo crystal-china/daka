@@ -26,7 +26,7 @@
 
         <% date[1].each do |record| %>
           <%
-          hostname, action, time, _ = record
+          hostname, action, time, _ = record.values
 
           case action
           when "online"
