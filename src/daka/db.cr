@@ -5,7 +5,7 @@ require "sqlite3"
 
 module Daka
   class DB
-    getter db_url : String {"sqlite3:#{find_db_path("daka.db")}"}
+    getter db_url : String { "sqlite3:#{find_db_path("daka.db")}" }
 
     def initialize
       create_db unless db_exists?
@@ -35,7 +35,7 @@ module Daka
                 id INTEGER PRIMARY KEY,
                 hostname TEXT,
                 action TEXT,
-                date DATETIME DEFAULT CURRENT_DATE,
+                date DATETIME TEXT,
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP
       );"
       end

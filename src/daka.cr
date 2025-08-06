@@ -24,9 +24,10 @@ post "/daka" do |env|
     # 上次心跳是离线, 那么这次心跳一定是在线
     #
     conn.exec(
-      "INSERT INTO daka (hostname, action) VALUES (?, ?);",
+      "INSERT INTO daka (hostname, action, date) VALUES (?, ?, ?);",
       hostname,
-      next_record_action(conn, hostname)
+      next_record_action(conn, hostname),
+      Time.local.in(Time::Location.fixed(8*3600)).to_s("%Y-%m-%d")
     )
   end
 
@@ -65,8 +66,6 @@ get "/admin" do |env|
 hostname,action,date,created_at
 FROM daka
 WHERE date IN (#{sql})
-AND
-action IN ('online','offline','timeout')
 ORDER BY id" do |rs|
     hostname, action, date = rs.read(String, String, String)
     created_at = rs.read(Time).in(Time::Location.fixed(8*3600))
