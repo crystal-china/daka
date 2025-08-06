@@ -65,7 +65,10 @@ get "/admin" do |env|
   conn.query_each "SELECT
 hostname,action,date,created_at
 FROM daka
-WHERE date IN (#{sql})
+WHERE 
+date IN (#{sql})
+AND
+action IN ('online','offline','timeout')
 ORDER BY id" do |rs|
     hostname, action, date = rs.read(String, String, String)
     created_at = rs.read(Time).in(Time::Location.fixed(8*3600))
