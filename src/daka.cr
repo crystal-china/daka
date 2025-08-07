@@ -107,6 +107,12 @@ end
 
 Kemal.run
 
+#
+# 查找当前 hostname 的最后一条记录
+# 并根据 `'现在时间` '和 `'最后一条记录时间` 的间隔，选择是否更新 action
+# 返回 action 字符串。
+#
+
 private def next_record_action(conn, hostname) : String
   now = Time.local
   action = "heartbeat"
@@ -126,16 +132,26 @@ LIMIT 1;
 
     last_headbeat_time, last_id, last_action = result
 
-    if (now - last_headbeat_time > TIME_SPAN + 2.minutes)
+    #
+    # 如果当前时间和最后一次保存的心跳时间间隔超过了预设的 TIME_SPAN (默认 1分钟),
+    # 这通常意味着, 系统在长时间断网后, 刚刚重新连接网络, 即: 系统刚刚启动或唤醒
+    #
+    if (now - last_headbeat_time > TIME_SPAN + 2.minutes) # 额外加 2 分钟作为时间冗余
       #
-      # 如果当前时间和最后一次保存的心跳时间间隔超过了预设的一分钟, 这通常意味着,
-      # 系统在长时间断网后, 刚刚重新连接网络, 即: 系统刚刚启动或唤醒
-      # 因此, 那么前一次成功的心跳的时间, 可以粗略认为是系统离线时间.
+      # 此时， 如果最后一次成功的打卡是正常的 heartbeat, 而不是其他 action，
+      # 那就意味着这次打卡后，下次打卡之前，这个时间段客户系统离线。
+      # 此时，可以粗略的认为，这最后一次成功的打卡，就是系统离线时间.
       #
       if last_action == "heartbeat"
+        # 重新连接的时候，因为超时，更新最后一个 heartbeat 打卡为 offline
         conn.exec("update daka set action = ? where id = ?", "offline", last_id)
       end
 
+      #
+      # 刚刚更新为 online, 下一次打卡之前，立刻（下线）超时，
+      # 即：长时间离线后，开机第一次 online 打卡，然后没有心跳了。
+      # 近似等价于，客户系统刚开机就关机。
+      #
       if last_action == "online"
         conn.exec("update daka set action = ? where id = ?", "timeout", last_id)
       end
