@@ -27,7 +27,7 @@ post "/daka" do |env|
       "INSERT INTO daka (hostname, action, date) VALUES (?, ?, ?);",
       hostname,
       update_last_record_action(conn, hostname),
-      Time.local.in(Time::Location.fixed(8*3600)).to_s("%Y-%m-%d")
+      Time.local.in(Time::Location.load("Asia/Shanghai")).to_s("%Y-%m-%d")
     )
   end
 
@@ -71,7 +71,7 @@ AND
 action IN ('online','offline','timeout')
 ORDER BY id" do |rs|
     hostname, action, date = rs.read(String, String, String)
-    created_at = rs.read(Time).in(Time::Location.fixed(8*3600))
+    created_at = rs.read(Time).in(Time::Location.load("Asia/Shanghai"))
 
     records << {hostname: hostname, action: action, created_at: created_at, date: date}
   end
