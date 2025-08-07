@@ -31,6 +31,8 @@ DAKAPWD=newpass bin/daka -b 127.0.0.1 -p 3001
 
 你也可以直接通过命令行来查看打卡记录, 将会以表格的形式输出到终端.
 
+为了在你所在的时区显示正确，你可以通过环境变量 DAKATIMEZONE 指定时区，默认是 "Asia/Shanghai"
+
  ```sh
  $: xhs -b -a user:1234567 https://your_server/admin
  ```

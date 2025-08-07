@@ -5,6 +5,7 @@ require "./daka/db"
 require "./daka/version"
 
 TIME_SPAN = ENV.fetch("DAKAINTERVAL", "1").to_i.minute
+TIME_ZONE = ENV.fetch("DAKATIMEZONE", "Asia/Shanghai")
 
 daka_db = Daka::DB.new
 
@@ -55,9 +56,9 @@ get "/admin" do |env|
   p! days
   date_ranges = [] of String
   (days..1).step(-1).each do |day|
-    date_ranges << day.days.ago.in(Time::Location.load("Asia/Shanghai")).to_s("%Y-%m-%d")
+    date_ranges << day.days.ago.in(time_zone).to_s("%Y-%m-%d")
   end
-  date_ranges << Time.local.in(Time::Location.load("Asia/Shanghai")).to_s("%Y-%m-%d")
+  date_ranges << current_date
 
   sql = date_ranges.map { |date| "\"#{date}\"" }.join(",")
 
@@ -72,7 +73,7 @@ AND
 action IN ('online','offline','timeout')
 ORDER BY id" do |rs|
     hostname, action, date = rs.read(String, String, String)
-    created_at = rs.read(Time).in(Time::Location.load("Asia/Shanghai"))
+    created_at = rs.read(Time).in(time_zone)
 
     records << {hostname: hostname, action: action, created_at: created_at, date: date}
   end
@@ -165,5 +166,9 @@ LIMIT 1;
 end
 
 private def current_date
-  Time.local.in(Time::Location.load("Asia/Shanghai")).to_s("%Y-%m-%d")
+  Time.local.in(time_zone).to_s("%Y-%m-%d")
+end
+
+private def time_zone
+  Time::Location.load(TIME_ZONE)
 end
