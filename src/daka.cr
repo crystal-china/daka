@@ -27,7 +27,7 @@ post "/daka" do |env|
       "INSERT INTO daka (hostname, action, date) VALUES (?, ?, ?);",
       hostname,
       update_last_record_action(conn, hostname),
-      Time.local.in(Time::Location.load("Asia/Shanghai")).to_s("%Y-%m-%d")
+      current_date
     )
   end
 
@@ -52,11 +52,12 @@ get "/admin" do |env|
     update_last_record_action(conn, hostname)
   end
 
+  p! days
   date_ranges = [] of String
   (days..1).step(-1).each do |day|
-    date_ranges << day.days.ago.to_s("%Y-%m-%d")
+    date_ranges << day.days.ago.in(Time::Location.load("Asia/Shanghai")).to_s("%Y-%m-%d")
   end
-  date_ranges << Time.local.to_s("%Y-%m-%d")
+  date_ranges << Time.local.in(Time::Location.load("Asia/Shanghai")).to_s("%Y-%m-%d")
 
   sql = date_ranges.map { |date| "\"#{date}\"" }.join(",")
 
@@ -161,4 +162,8 @@ LIMIT 1;
   end
 
   action
+end
+
+private def current_date
+  Time.local.in(Time::Location.load("Asia/Shanghai")).to_s("%Y-%m-%d")
 end
