@@ -26,7 +26,7 @@ post "/daka" do |env|
     conn.exec(
       "INSERT INTO daka (hostname, action, date) VALUES (?, ?, ?);",
       hostname,
-      next_record_action(conn, hostname),
+      update_last_record_action(conn, hostname),
       Time.local.in(Time::Location.fixed(8*3600)).to_s("%Y-%m-%d")
     )
   end
@@ -41,18 +41,18 @@ end
 get "/admin" do |env|
   # days 表示显示之前几天的记录, 默认仅显示之前一天的记录.
   days = (env.params.query["days"]? || 1).to_i
-  date_ranges = [] of String
-  hostnames = [] of String
   conn = daka_db.conn
 
+  hostnames = [] of String
   conn.query_each "SELECT DISTINCT hostname FROM daka;" do |rs|
     hostnames << rs.read(String)
   end
 
   hostnames.each do |hostname|
-    next_record_action(conn, hostname)
+    update_last_record_action(conn, hostname)
   end
 
+  date_ranges = [] of String
   (days..1).step(-1).each do |day|
     date_ranges << day.days.ago.to_s("%Y-%m-%d")
   end
@@ -65,7 +65,7 @@ get "/admin" do |env|
   conn.query_each "SELECT
 hostname,action,date,created_at
 FROM daka
-WHERE 
+WHERE
 date IN (#{sql})
 AND
 action IN ('online','offline','timeout')
@@ -113,7 +113,7 @@ Kemal.run
 # 返回 action 字符串。
 #
 
-private def next_record_action(conn, hostname) : String
+private def update_last_record_action(conn, hostname) : String
   now = Time.local
   action = "heartbeat"
 
